@@ -30,7 +30,7 @@ on:
         type: string
         default: "main"
       site_mappings:
-        description: 'JSON object mapping app names to site IDs (e.g., {"web":"my-site","admin":"my-admin-site"})'
+        description: 'JSON mapping NX app names to Firebase site IDs (e.g., {"web-app":"my-project-web","admin-app":"my-project-admin"})'
         required: false
         type: string
       comment_on_issue:

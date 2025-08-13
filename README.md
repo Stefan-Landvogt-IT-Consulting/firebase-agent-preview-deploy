@@ -39,8 +39,8 @@ jobs:
       # For single-app repos (uncomment if needed):
       # default_app: 'web'
       # default_target: 'web'
-      # For multi-app repos with different sites (optional):
-      # site_mappings: '{"web":"my-project-web","admin":"my-project-admin"}'
+      # For multi-app repos with different Firebase sites (optional):
+      # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin"}'
     secrets:
       firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 ```
@@ -65,7 +65,7 @@ All configuration is done via **workflow inputs** when calling the reusable work
 | `firebase_project` | Firebase project ID                               | Yes             | -       |
 | `default_app`      | App name (for single-app repos)                  | Single-app only | -       |
 | `default_target`   | Firebase hosting target (for single-app repos)   | Single-app only | -       |
-| `site_mappings`    | JSON mapping of app names to site IDs            | No              | -       |
+| `site_mappings`    | JSON mapping NX app names to Firebase site IDs   | No              | -       |
 | `build_command`    | Custom build command (overrides auto-detection)  | No              | -       |
 | `node_version`     | Node.js version                                   | No              | `20`    |
 | `base_branch`      | Base branch for change detection                  | No              | `main`  |
@@ -75,7 +75,7 @@ All configuration is done via **workflow inputs** when calling the reusable work
 For monorepos with apps deployed to different Firebase sites:
 
 ```yaml
-site_mappings: '{"web":"my-project-web","admin":"my-project-admin","mobile":"my-project-mobile"}'
+site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
 ```
 
 ### Custom Build Commands
