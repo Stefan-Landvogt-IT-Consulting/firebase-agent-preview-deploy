@@ -1,0 +1,225 @@
+name: AI Agent Preview Deploy
+
+on:
+  workflow_call:
+    inputs:
+      firebase_project:
+        description: 'Firebase project ID'
+        required: true
+        type: string
+      default_app:
+        description: 'Default app name (for single-app repos)'
+        required: false
+        type: string
+      default_target:
+        description: 'Default Firebase hosting target (for single-app repos)'
+        required: false
+        type: string
+      build_command:
+        description: 'Custom build command (overrides auto-detection)'
+        required: false
+        type: string
+      node_version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+      base_branch:
+        description: 'Base branch for change detection'
+        required: false
+        type: string
+        default: 'main'
+      site_mappings:
+        description: 'JSON object mapping app names to site IDs (e.g., {"web":"my-site","admin":"my-admin-site"})'
+        required: false
+        type: string
+    secrets:
+      firebase_service_account:
+        description: 'Firebase service account JSON'
+        required: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+
+      - name: Extract agent info and determine app
+        id: agent
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          AGENT_NAME=$(echo "$BRANCH_NAME" | cut -d'/' -f1)
+          echo "name=$AGENT_NAME" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          # Determine which app to build based on changed files
+          BASE_BRANCH="${{ inputs.base_branch }}"
+          git fetch origin $BASE_BRANCH --depth=50
+          CHANGED_FILES=$(git diff --name-only origin/$BASE_BRANCH..HEAD)
+
+          # Default configuration
+          DEFAULT_SITE_ID="${{ inputs.firebase_project }}"
+
+          # Multi-app detection (if apps directory exists)
+          if [ -d "apps" ]; then
+            # Count changes in different app directories
+            APP=""
+            TARGET=""
+            max_changes=0
+            for app_dir in apps/*/; do
+              if [ -d "$app_dir" ]; then
+                app_name=$(basename "$app_dir")
+                changes=$(echo "$CHANGED_FILES" | grep -c "apps/$app_name" || true)
+                echo "Changes in $app_name: $changes"
+                
+                # Use the app with the most changes
+                if [ "$changes" -gt "$max_changes" ]; then
+                  max_changes="$changes"
+                  APP="$app_name"
+                  TARGET="$app_name"
+                fi
+              fi
+            done
+            
+            # If no app changes detected, fail
+            if [ -z "$APP" ]; then
+              echo "No app changes detected in apps/ directory. Please ensure your changes are in an app subdirectory."
+              exit 1
+            fi
+          else
+            # Single-app repository - use configured defaults
+            APP="${{ inputs.default_app }}"
+            TARGET="${{ inputs.default_target }}"
+            
+            if [ -z "$APP" ] || [ -z "$TARGET" ]; then
+              echo "For single-app repos, default_app and default_target inputs are required."
+              exit 1
+            fi
+          fi
+
+          # Set site ID (check mappings first, then fall back to project ID)
+          SITE_ID="$DEFAULT_SITE_ID"
+          if [ -n "${{ inputs.site_mappings }}" ] && [ -n "$APP" ]; then
+            # Parse JSON mappings to find site ID for this app
+            if echo '${{ inputs.site_mappings }}' | jq empty > /dev/null 2>&1; then
+              MAPPED_SITE=$(echo '${{ inputs.site_mappings }}' | jq -r --arg app "$APP" '.[$app] // empty')
+              if [ -n "$MAPPED_SITE" ] && [ "$MAPPED_SITE" != "null" ] && [ "$MAPPED_SITE" != "empty" ]; then
+                SITE_ID="$MAPPED_SITE"
+                echo "Using mapped site ID for $APP: $SITE_ID"
+              fi
+            else
+              echo "Warning: Invalid JSON in site_mappings, using default site ID"
+            fi
+          fi
+
+          echo "app=$APP" >> $GITHUB_OUTPUT
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          echo "site_id=$SITE_ID" >> $GITHUB_OUTPUT
+          echo "channel_id=${AGENT_NAME}-${APP}-preview" >> $GITHUB_OUTPUT
+
+          echo "Using app: $APP, target: $TARGET, site: $SITE_ID"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
+
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: |
+          echo "Building ${{ steps.agent.outputs.app }}..."
+
+          BUILD_COMMAND="${{ inputs.build_command }}"
+          if [ -z "$BUILD_COMMAND" ]; then
+            # Auto-detect build system
+            if [ -f "nx.json" ]; then
+              BUILD_COMMAND="npx nx run-many -t build --projects ${{ steps.agent.outputs.app }} --parallel --configuration=development"
+            elif [ -f "angular.json" ]; then
+              BUILD_COMMAND="ng build ${{ steps.agent.outputs.app }} --configuration=development"
+            elif grep -q "\"build\":" package.json; then
+              BUILD_COMMAND="npm run build"
+            else
+              echo "No build command detected. Please provide build_command input."
+              exit 1
+            fi
+          else
+            # Replace placeholders in custom build command
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g")
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
+          fi
+
+          echo "Running: $BUILD_COMMAND"
+          $BUILD_COMMAND
+
+      - name: Setup Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate to Firebase
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.firebase_service_account }}
+
+      - name: Deploy Preview Channel
+        id: deploy
+        run: |
+          FIREBASE_PROJECT="${{ inputs.firebase_project }}"
+          firebase use $FIREBASE_PROJECT
+
+          DEPLOY_COMMAND="firebase hosting:channel:deploy ${{ steps.agent.outputs.channel_id }}"
+
+          # Add hosting target if specified and not empty
+          if [ -n "${{ steps.agent.outputs.target }}" ] && [ "${{ steps.agent.outputs.target }}" != "default" ] && [ "${{ steps.agent.outputs.target }}" != "" ]; then
+            DEPLOY_COMMAND="$DEPLOY_COMMAND --only ${{ steps.agent.outputs.target }}"
+          fi
+
+          DEPLOY_COMMAND="$DEPLOY_COMMAND --expires 30d --json"
+
+          echo "Running: $DEPLOY_COMMAND"
+          $DEPLOY_COMMAND > deploy-output.json
+
+          echo "=== Deploy Output ==="
+          cat deploy-output.json
+          echo "=== Extracting URL ==="
+
+          PREVIEW_URL=$(cat deploy-output.json | jq -r '
+            .result."${{ steps.agent.outputs.site_id }}".url // 
+            .result | to_entries | .[0].value.url // 
+            (.result | keys_unsorted | .[0] as $key | .result[$key].url) //
+            "URL_NOT_FOUND"
+          ')
+          echo "Extracted URL: $PREVIEW_URL"
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment on linked issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchName = '${{ steps.agent.outputs.branch }}';
+            const agentName = '${{ steps.agent.outputs.name }}';
+            const issuePattern = `${agentName}\\/issue-(\\d+)-`;
+            const issueMatch = branchName.match(new RegExp(issuePattern));
+
+            if (issueMatch) {
+              const issueNumber = parseInt(issueMatch[1]);
+              const commentTemplate = `🚀 **Preview deployed!**\n\n📱 **App:** ${{ steps.agent.outputs.app }}\n🔗 **Preview URL:** ${{ steps.deploy.outputs.preview_url }}\n\n_Note: This preview updates with each new commit. Latest deployment from branch: \`${branchName}\`_`;
+              
+              await github.rest.issues.createComment({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentTemplate
+              });
+              console.log(`Posted comment to issue #${issueNumber}`);
+            } else {
+              console.log(`Could not extract issue number from branch: ${branchName}`);
+            }

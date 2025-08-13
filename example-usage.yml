@@ -1,0 +1,31 @@
+# Example: How to use this reusable workflow in your repository
+# Save this as .github/workflows/agent-preview.yml in your repo
+
+name: AI Agent Preview Deploy
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+      - 'gemini/**'
+      - 'copilot/**'
+      - 'jules/**'
+
+jobs:
+  deploy-preview:
+    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/agent-preview-deploy.yml@v0.1
+    with:
+      firebase_project: 'my-project-dev'
+      # For single-app repos (uncomment if needed):
+      # default_app: 'web'
+      # default_target: 'web'
+      # For multi-app repos with different sites (optional):
+      # site_mappings: '{"web":"my-project-web","admin":"my-project-admin","mobile":"my-project-mobile"}'
+      # Custom build command (optional):
+      # build_command: 'npm run build:preview'
+      # Node version (optional, defaults to '20'):
+      # node_version: '18'
+      # Base branch (optional, defaults to 'main'):
+      # base_branch: 'develop'
+    secrets:
+      firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
