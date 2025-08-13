@@ -32,5 +32,7 @@ jobs:
       # node_version: '18'
       # Base branch (optional, defaults to 'main'):
       # base_branch: 'develop'
+      # Disable issue commenting (optional, defaults to true):
+      # comment_on_issue: false
     secrets:
       firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

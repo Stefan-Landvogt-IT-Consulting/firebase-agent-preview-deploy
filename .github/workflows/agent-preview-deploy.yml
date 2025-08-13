@@ -33,6 +33,11 @@ on:
         description: 'JSON object mapping app names to site IDs (e.g., {"web":"my-site","admin":"my-admin-site"})'
         required: false
         type: string
+      comment_on_issue:
+        description: 'Whether to comment preview URL on linked GitHub issues'
+        required: false
+        type: boolean
+        default: true
     secrets:
       firebase_service_account:
         description: "Firebase service account JSON"
@@ -210,6 +215,7 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
 
       - name: Comment on linked issue
+        if: ${{ inputs.comment_on_issue == true }}
         uses: actions/github-script@v7
         with:
           script: |
