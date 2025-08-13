@@ -28,7 +28,7 @@ on:
 
 jobs:
   deploy-preview:
-    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/agent-preview-deploy.yml@v0.1
+    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@v0.1
     with:
       firebase_project: "your-firebase-project-id"
       # For single-app repos (uncomment if needed):
