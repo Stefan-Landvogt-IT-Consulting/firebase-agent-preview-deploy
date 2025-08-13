@@ -120,7 +120,13 @@ jobs:
           echo "app=$APP" >> $GITHUB_OUTPUT
           echo "target=$TARGET" >> $GITHUB_OUTPUT
           echo "site_id=$SITE_ID" >> $GITHUB_OUTPUT
-          echo "channel_id=${AGENT_NAME}-${APP}-preview" >> $GITHUB_OUTPUT
+          # Create channel ID - include app name only if multi-app setup
+          if [ -d "apps" ]; then
+            CHANNEL_ID="${AGENT_NAME}-${APP}-preview"
+          else
+            CHANNEL_ID="${AGENT_NAME}-preview"
+          fi
+          echo "channel_id=$CHANNEL_ID" >> $GITHUB_OUTPUT
 
           echo "Using app: $APP, target: $TARGET, site: $SITE_ID"
 
