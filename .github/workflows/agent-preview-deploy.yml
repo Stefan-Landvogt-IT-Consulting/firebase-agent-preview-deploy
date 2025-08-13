@@ -201,9 +201,9 @@ jobs:
 
           SITE_ID="${{ steps.agent.outputs.site_id }}"
           PREVIEW_URL=$(cat deploy-output.json | jq -r --arg site_id "$SITE_ID" '
-            .result[$site_id].url // 
-            .result | to_entries | .[0].value.url // 
-            (.result | keys_unsorted | .[0] as $key | .result[$key].url) //
+            (.result[$site_id].url // null) //
+            (.result | to_entries | .[0].value.url // null) //
+            (.result | keys_unsorted | .[0] as $key | .result[$key].url // null) //
             "URL_NOT_FOUND"
           ')
           echo "Extracted URL: $PREVIEW_URL"
