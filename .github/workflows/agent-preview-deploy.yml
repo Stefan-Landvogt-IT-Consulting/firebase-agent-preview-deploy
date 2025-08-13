@@ -162,10 +162,20 @@ jobs:
       - name: Setup Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Verify Firebase credentials
+        run: |
+          if [ -z "${{ secrets.firebase_service_account }}" ]; then
+            echo "Error: FIREBASE_SERVICE_ACCOUNT secret is not set or empty"
+            echo "Please ensure you have added the Firebase service account JSON as a repository secret"
+            exit 1
+          fi
+          echo "Firebase service account secret is configured"
+
       - name: Authenticate to Firebase
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.firebase_service_account }}
+          create_credentials_file: true
 
       - name: Deploy Preview Channel
         id: deploy
