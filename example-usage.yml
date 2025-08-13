@@ -6,10 +6,10 @@ name: AI Agent Preview Deploy
 on:
   push:
     branches:
-      - 'claude/**'
-      - 'gemini/**'
-      - 'copilot/**'
-      - 'jules/**'
+      - "claude/**"
+      - "gemini/**"
+      - "copilot/**"
+      - "jules/**"
 
 jobs:
   deploy-preview:
@@ -20,7 +20,7 @@ jobs:
       id-token: write
     uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
     with:
-      firebase_project: 'my-project-dev'
+      firebase_project: "my-project-dev"
       # For single-app repos (uncomment if needed):
       # default_app: 'web'
       # default_target: 'web'

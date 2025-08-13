@@ -4,38 +4,38 @@ on:
   workflow_call:
     inputs:
       firebase_project:
-        description: 'Firebase project ID'
+        description: "Firebase project ID"
         required: true
         type: string
       default_app:
-        description: 'Default app name (for single-app repos)'
+        description: "Default app name (for single-app repos)"
         required: false
         type: string
       default_target:
-        description: 'Default Firebase hosting target (for single-app repos)'
+        description: "Default Firebase hosting target (for single-app repos)"
         required: false
         type: string
       build_command:
-        description: 'Custom build command (overrides auto-detection)'
+        description: "Custom build command (overrides auto-detection)"
         required: false
         type: string
       node_version:
-        description: 'Node.js version'
+        description: "Node.js version"
         required: false
         type: string
-        default: '20'
+        default: "20"
       base_branch:
-        description: 'Base branch for change detection'
+        description: "Base branch for change detection"
         required: false
         type: string
-        default: 'main'
+        default: "main"
       site_mappings:
         description: 'JSON object mapping app names to site IDs (e.g., {"web":"my-site","admin":"my-admin-site"})'
         required: false
         type: string
     secrets:
       firebase_service_account:
-        description: 'Firebase service account JSON'
+        description: "Firebase service account JSON"
         required: true
 
 jobs:
@@ -48,7 +48,6 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-
 
       - name: Extract agent info and determine app
         id: agent
@@ -131,7 +130,6 @@ jobs:
           node-version: ${{ inputs.node_version }}
           cache: "npm"
 
-
       - name: Install dependencies
         run: npm ci
 
@@ -145,7 +143,7 @@ jobs:
             if [ -f "nx.json" ]; then
               BUILD_COMMAND="npx nx run-many -t build --projects ${{ steps.agent.outputs.app }} --parallel --configuration=development"
             elif [ -f "angular.json" ]; then
-              BUILD_COMMAND="ng build ${{ steps.agent.outputs.app }} --configuration=development"
+              BUILD_COMMAND="npx ng build ${{ steps.agent.outputs.app }} --configuration=development"
             elif grep -q "\"build\":" package.json; then
               BUILD_COMMAND="npm run build"
             else
