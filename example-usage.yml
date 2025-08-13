@@ -13,7 +13,12 @@ on:
 
 jobs:
   deploy-preview:
-    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@v0.1
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
     with:
       firebase_project: 'my-project-dev'
       # For single-app repos (uncomment if needed):

@@ -28,7 +28,12 @@ on:
 
 jobs:
   deploy-preview:
-    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@v0.1
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
     with:
       firebase_project: "your-firebase-project-id"
       # For single-app repos (uncomment if needed):
@@ -47,7 +52,7 @@ jobs:
 
 3. **Done!** Push to an agent branch like `claude/issue-123-fix` and watch it deploy.
 
-> **💡 Tip:** Use `@v0.1` for stable releases or `@main` for the latest features. See [releases](https://github.com/Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/releases) for available versions.
+> **💡 Tip:** Use `@main` for the latest features. Tagged releases coming soon!
 
 ## Configuration
 
