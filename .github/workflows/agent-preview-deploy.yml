@@ -34,7 +34,7 @@ on:
         required: false
         type: string
       comment_on_issue:
-        description: 'Whether to comment preview URL on linked GitHub issues'
+        description: "Whether to comment preview URL on linked GitHub issues"
         required: false
         type: boolean
         default: true
@@ -53,6 +53,54 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify Firebase credentials
+        run: |
+          if [ -z "${{ secrets.firebase_service_account }}" ]; then
+            echo "Error: FIREBASE_SERVICE_ACCOUNT secret is not set or empty"
+            echo "Please ensure you have added the Firebase service account JSON as a repository secret"
+            exit 1
+          fi
+          echo "Firebase service account secret is configured"
+
+      - name: Validate inputs
+        run: |
+          # Validate site_mappings JSON if provided
+          if [ -n "${{ inputs.site_mappings }}" ]; then
+            echo "Validating site_mappings JSON..."
+            if ! echo '${{ inputs.site_mappings }}' | jq empty > /dev/null 2>&1; then
+              echo "Error: Invalid JSON in site_mappings parameter"
+              echo "Provided: ${{ inputs.site_mappings }}"
+              exit 1
+            fi
+            echo "Site mappings JSON is valid"
+          fi
+
+          # Validate single-app configuration if no apps directory
+          if [ ! -d "apps" ]; then
+            if [ -z "${{ inputs.default_app }}" ] || [ -z "${{ inputs.default_target }}" ]; then
+              echo "Error: For single-app repos, both default_app and default_target inputs are required"
+              echo "Provided default_app: '${{ inputs.default_app }}'"
+              echo "Provided default_target: '${{ inputs.default_target }}'"
+              exit 1
+            fi
+            echo "Single-app configuration is valid"
+          fi
+
+          # Validate build system detection
+          if [ -z "${{ inputs.build_command }}" ]; then
+            echo "Checking for build system..."
+            if [ ! -f "nx.json" ] && [ ! -f "angular.json" ] && ! grep -q "\"build\":" package.json 2>/dev/null; then
+              echo "Error: No build system detected and no custom build_command provided"
+              echo "Expected one of:"
+              echo "  - nx.json (for NX)"
+              echo "  - angular.json (for Angular CLI)"
+              echo "  - 'build' script in package.json"
+              echo "  - Custom build_command input"
+              exit 1
+            fi
+            echo "Build system detected"
+          fi
 
       - name: Extract agent info and determine app
         id: agent
@@ -166,15 +214,6 @@ jobs:
 
       - name: Setup Firebase CLI
         run: npm install -g firebase-tools
-
-      - name: Verify Firebase credentials
-        run: |
-          if [ -z "${{ secrets.firebase_service_account }}" ]; then
-            echo "Error: FIREBASE_SERVICE_ACCOUNT secret is not set or empty"
-            echo "Please ensure you have added the Firebase service account JSON as a repository secret"
-            exit 1
-          fi
-          echo "Firebase service account secret is configured"
 
       - name: Authenticate to Firebase
         uses: google-github-actions/auth@v2
