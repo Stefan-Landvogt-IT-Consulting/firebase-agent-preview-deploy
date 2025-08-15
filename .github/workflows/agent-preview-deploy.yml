@@ -56,6 +56,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for change detection
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -64,13 +66,36 @@ jobs:
           cache: "npm"
           registry-url: ${{ secrets.github_npm_token && 'https://npm.pkg.github.com' || 'https://registry.npmjs.org' }}
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Cache NX
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nx/cache
+            node_modules/.cache/nx
+          key: ${{ runner.os }}-nx-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('nx.json', 'workspace.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nx-${{ hashFiles('**/package-lock.json') }}-
+            ${{ runner.os }}-nx-
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
         env:
           NODE_AUTH_TOKEN: ${{ secrets.github_npm_token || '' }}
 
-      - name: Verify Firebase credentials
+      - name: Verify Firebase credentials & Validate inputs
         run: |
+          # Verify Firebase credentials
           if [ -z "${{ secrets.firebase_service_account }}" ]; then
             echo "Error: FIREBASE_SERVICE_ACCOUNT secret is not set or empty"
             echo "Please ensure you have added the Firebase service account JSON as a repository secret"
@@ -78,8 +103,6 @@ jobs:
           fi
           echo "Firebase service account secret is configured"
 
-      - name: Validate inputs
-        run: |
           # Validate site_mappings JSON if provided
           if [ -n "${{ inputs.site_mappings }}" ]; then
             echo "Validating site_mappings JSON..."
