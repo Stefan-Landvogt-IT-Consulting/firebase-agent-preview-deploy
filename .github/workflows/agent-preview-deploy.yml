@@ -57,12 +57,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (with GitHub Packages)
+        if: ${{ secrets.npm_token != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
           cache: "npm"
           registry-url: "https://npm.pkg.github.com"
+
+      - name: Setup Node.js (public packages only)
+        if: ${{ secrets.npm_token == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
