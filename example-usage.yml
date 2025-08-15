@@ -36,5 +36,5 @@ jobs:
       # comment_on_issue: false
     secrets:
       firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      # Only needed if you have private npm packages:
-      npm_token: ${{ secrets.NPM_PACKAGE_TOKEN }}
+      # Only needed if you have private GitHub npm packages:
+      github_npm_token: ${{ secrets.GITHUB_NPM_TOKEN }}

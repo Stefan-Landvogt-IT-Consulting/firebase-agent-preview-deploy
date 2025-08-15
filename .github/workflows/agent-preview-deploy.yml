@@ -42,8 +42,8 @@ on:
       firebase_service_account:
         description: "Firebase service account JSON"
         required: true
-      npm_token:
-        description: "NPM token for private package access"
+      github_npm_token:
+        description: "GitHub NPM token for private package access"
         required: false
 
 jobs:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js (with GitHub Packages)
-        if: ${{ secrets.npm_token != '' }}
+        if: ${{ secrets.github_npm_token != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
@@ -66,7 +66,7 @@ jobs:
           registry-url: "https://npm.pkg.github.com"
 
       - name: Setup Node.js (public packages only)
-        if: ${{ secrets.npm_token == '' }}
+        if: ${{ secrets.github_npm_token == '' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
@@ -75,7 +75,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+          NODE_AUTH_TOKEN: ${{ secrets.github_npm_token }}
 
       - name: Verify Firebase credentials
         run: |
@@ -208,7 +208,7 @@ jobs:
         if: steps.agent.outputs.app != 'SKIP'
         run: |
           echo "Checking for existing build artifacts..."
-          
+
           # Common build output directories
           if [ -d "dist" ]; then
             echo "Found dist/ directory"
