@@ -12,27 +12,45 @@ on:
       - "jules/**"
 
 jobs:
-  deploy-preview:
+  build-and-deploy:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       issues: write
       id-token: write
-    uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
-    with:
-      firebase_project: "my-project-dev"
-      # For single-app repos (uncomment if needed):
-      # default_app: 'web'
-      # default_target: 'web'
-      # For multi-app repos with different Firebase sites (optional):
-      # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
-      # Custom build command (optional):
-      # build_command: 'npm run build:preview'
-      # Node version (optional, defaults to '20'):
-      # node_version: '18'
-      # Base branch (optional, defaults to 'main'):
-      # base_branch: 'develop'
-      # Disable issue commenting (optional, defaults to true):
-      # comment_on_issue: false
-    secrets:
-      firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
+
+      - name: Build app
+        run: npm run build
+
+      - name: Deploy preview
+        uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
+        with:
+          firebase_project: "my-project-dev"
+          # For single-app repos (uncomment if needed):
+          # default_app: 'web'
+          # default_target: 'web'
+          # For multi-app repos with different Firebase sites (optional):
+          # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
+          # Custom build command (optional - only needed if build artifacts don't exist):
+          # build_command: 'npm run build:preview'
+          # Base branch (optional, defaults to 'main'):
+          # base_branch: 'develop'
+          # Disable issue commenting (optional, defaults to true):
+          # comment_on_issue: false
+        secrets:
+          firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
