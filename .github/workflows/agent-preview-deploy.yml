@@ -177,18 +177,36 @@ jobs:
 
           echo "Using app: $APP, target: $TARGET, site: $SITE_ID"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node_version }}
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build app
+      - name: Check for existing build artifacts
         run: |
-          echo "Building ${{ steps.agent.outputs.app }}..."
+          echo "Checking for existing build artifacts..."
+          
+          # Common build output directories
+          if [ -d "dist" ]; then
+            echo "Found dist/ directory"
+            ls -la dist/
+          elif [ -d "build" ]; then
+            echo "Found build/ directory"
+            ls -la build/
+          elif [ -d "out" ]; then
+            echo "Found out/ directory"
+            ls -la out/
+          else
+            echo "No build artifacts found - will attempt to build if possible"
+            echo "Contents of current directory:"
+            ls -la
+          fi
+
+      - name: Build app (if needed)
+        run: |
+          # Check if build artifacts already exist
+          if [ -d "dist" ] || [ -d "build" ] || [ -d "out" ]; then
+            echo "Build artifacts already exist, skipping build step"
+            echo "Assuming source workflow already built the app"
+            exit 0
+          fi
+
+          echo "No build artifacts found, attempting to build ${{ steps.agent.outputs.app }}..."
 
           BUILD_COMMAND="${{ inputs.build_command }}"
           if [ -z "$BUILD_COMMAND" ]; then
@@ -200,7 +218,11 @@ jobs:
             elif grep -q "\"build\":" package.json; then
               BUILD_COMMAND="npm run build"
             else
-              echo "No build command detected. Please provide build_command input."
+              echo "No build command detected and no build artifacts found."
+              echo "Please either:"
+              echo "  1. Build the app in your source workflow before calling this action, OR"
+              echo "  2. Provide build_command input, OR"
+              echo "  3. Ensure you have nx.json, angular.json, or 'build' script in package.json"
               exit 1
             fi
           else
