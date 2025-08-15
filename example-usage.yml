@@ -32,6 +32,12 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Clean build artifacts
+        run: |
+          # Remove Windows Zone.Identifier files that cause upload issues
+          find dist/ build/ out/ -name "*.Zone.Identifier" -delete 2>/dev/null || true
+          find dist/ build/ out/ -name "*:*" -delete 2>/dev/null || true
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
