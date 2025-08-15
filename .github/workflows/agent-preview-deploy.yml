@@ -227,8 +227,8 @@ jobs:
             BUILD_COMMAND="npm run build"
           else
             # Replace placeholders in custom build command
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g")
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\\\$APP/${{ steps.agent.outputs.app }}/g")
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\\\$TARGET/${{ steps.agent.outputs.target }}/g")
           fi
 
           echo "Running: $BUILD_COMMAND"
