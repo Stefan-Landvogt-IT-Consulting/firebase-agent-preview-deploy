@@ -219,18 +219,18 @@ jobs:
 
       - name: Build app
         if: steps.agent.outputs.app != 'SKIP'
+        env:
+          APP: ${{ steps.agent.outputs.app }}
+          TARGET: ${{ steps.agent.outputs.target }}
         run: |
-          echo "Building ${{ steps.agent.outputs.app }}..."
+          echo "Building $APP..."
 
           if [ -n "${{ inputs.build_command }}" ]; then
-            # Use custom build command with direct substitution
-            BUILD_COMMAND=$(echo "${{ inputs.build_command }}" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
+            echo "Running: ${{ inputs.build_command }}"
+            ${{ inputs.build_command }}
           else
-            BUILD_COMMAND="npm run build"
+            npm run build
           fi
-
-          echo "Running: $BUILD_COMMAND"
-          eval "$BUILD_COMMAND"
 
           # Clean up Windows Zone.Identifier files that cause issues
           find . -name "*.Zone.Identifier" -delete 2>/dev/null || true
