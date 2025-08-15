@@ -12,7 +12,7 @@ on:
       - "jules/**"
 
 jobs:
-  build:
+  install-dependencies:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,27 +29,14 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_TOKEN }}
 
-      - name: Build app
-        run: npm run build
-
-      - name: Clean build artifacts
-        run: |
-          # Remove Windows Zone.Identifier files that cause upload issues
-          find dist/ build/ out/ -name "*.Zone.Identifier" -delete 2>/dev/null || true
-          find dist/ build/ out/ -name "*:*" -delete 2>/dev/null || true
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
         with:
-          name: build-artifacts
-          path: |
-            dist/
-            build/
-            out/
-          retention-days: 1
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
-  deploy-preview:
-    needs: build
+  build-and-deploy:
+    needs: install-dependencies
     permissions:
       contents: read
       pull-requests: write
@@ -63,6 +50,10 @@ jobs:
       # default_target: 'web'
       # For multi-app repos with different Firebase sites (optional):
       # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
+      # Custom build command (optional):
+      # build_command: 'npm run build:preview'
+      # Node version (optional, defaults to '20'):
+      # node_version: '18'
       # Base branch (optional, defaults to 'main'):
       # base_branch: 'develop'
       # Disable issue commenting (optional, defaults to true):

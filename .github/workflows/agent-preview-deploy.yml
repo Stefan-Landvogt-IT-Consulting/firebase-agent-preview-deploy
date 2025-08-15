@@ -54,11 +54,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: build-artifacts
-          path: .
+          node-version: ${{ inputs.node_version }}
 
       - name: Verify Firebase credentials
         run: |
@@ -208,32 +207,36 @@ jobs:
             ls -la
           fi
 
-      - name: Verify build artifacts for deployment
+      - name: Build app
         if: steps.agent.outputs.app != 'SKIP'
         run: |
-          # Check if build artifacts exist for deployment
-          if [ -d "dist" ] || [ -d "build" ] || [ -d "out" ]; then
-            echo "✅ Build artifacts found - ready for deployment"
-            exit 0
+          echo "Building ${{ steps.agent.outputs.app }}..."
+
+          BUILD_COMMAND="${{ inputs.build_command }}"
+          if [ -z "$BUILD_COMMAND" ]; then
+            # Auto-detect build system
+            if [ -f "nx.json" ]; then
+              BUILD_COMMAND="npx nx run-many -t build --projects ${{ steps.agent.outputs.app }} --parallel --configuration=development"
+            elif [ -f "angular.json" ]; then
+              BUILD_COMMAND="npx ng build ${{ steps.agent.outputs.app }} --configuration=development"
+            elif grep -q "\"build\":" package.json; then
+              BUILD_COMMAND="npm run build"
+            else
+              echo "No build command detected. Please provide build_command input."
+              exit 1
+            fi
+          else
+            # Replace placeholders in custom build command
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g")
+            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
           fi
 
-          echo "❌ No build artifacts found for deployment"
-          echo ""
-          echo "This action expects build artifacts to already exist."
-          echo "Please ensure your source workflow includes these steps before calling this action:"
-          echo ""
-          echo "  - name: Install dependencies"
-          echo "    run: npm ci"
-          echo "    env:"
-          echo "      NODE_AUTH_TOKEN: \${{ secrets.NPM_PACKAGE_TOKEN }}"
-          echo ""
-          echo "  - name: Build app"
-          echo "    run: npm run build"
-          echo ""
-          echo "Expected build output directories: dist/, build/, or out/"
-          echo "Current directory contents:"
-          ls -la
-          exit 1
+          echo "Running: $BUILD_COMMAND"
+          $BUILD_COMMAND
+
+          # Clean up Windows Zone.Identifier files that cause issues
+          find . -name "*.Zone.Identifier" -delete 2>/dev/null || true
+          find . -name "*:*" -delete 2>/dev/null || true
 
       - name: Setup Firebase CLI
         if: steps.agent.outputs.app != 'SKIP'
