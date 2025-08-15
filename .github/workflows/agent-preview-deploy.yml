@@ -54,6 +54,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: .
+
       - name: Verify Firebase credentials
         run: |
           if [ -z "${{ secrets.firebase_service_account }}" ]; then
@@ -139,10 +145,14 @@ jobs:
               fi
             done
             
-            # If no app changes detected, fail
+            # If no app changes detected, skip deployment
             if [ -z "$APP" ]; then
-              echo "No app changes detected in apps/ directory. Please ensure your changes are in an app subdirectory."
-              exit 1
+              echo "No app changes detected in apps/ directory. Skipping deployment."
+              echo "app=SKIP" >> $GITHUB_OUTPUT
+              echo "target=SKIP" >> $GITHUB_OUTPUT
+              echo "site_id=SKIP" >> $GITHUB_OUTPUT
+              echo "channel_id=SKIP" >> $GITHUB_OUTPUT
+              exit 0
             fi
           else
             # Single-app repository - use configured defaults
@@ -178,6 +188,7 @@ jobs:
           echo "Using app: $APP, target: $TARGET, site: $SITE_ID"
 
       - name: Check for existing build artifacts
+        if: steps.agent.outputs.app != 'SKIP'
         run: |
           echo "Checking for existing build artifacts..."
           
@@ -197,53 +208,46 @@ jobs:
             ls -la
           fi
 
-      - name: Build app (if needed)
+      - name: Verify build artifacts for deployment
+        if: steps.agent.outputs.app != 'SKIP'
         run: |
-          # Check if build artifacts already exist
+          # Check if build artifacts exist for deployment
           if [ -d "dist" ] || [ -d "build" ] || [ -d "out" ]; then
-            echo "Build artifacts already exist, skipping build step"
-            echo "Assuming source workflow already built the app"
+            echo "✅ Build artifacts found - ready for deployment"
             exit 0
           fi
 
-          echo "No build artifacts found, attempting to build ${{ steps.agent.outputs.app }}..."
-
-          BUILD_COMMAND="${{ inputs.build_command }}"
-          if [ -z "$BUILD_COMMAND" ]; then
-            # Auto-detect build system
-            if [ -f "nx.json" ]; then
-              BUILD_COMMAND="npx nx run-many -t build --projects ${{ steps.agent.outputs.app }} --parallel --configuration=development"
-            elif [ -f "angular.json" ]; then
-              BUILD_COMMAND="npx ng build ${{ steps.agent.outputs.app }} --configuration=development"
-            elif grep -q "\"build\":" package.json; then
-              BUILD_COMMAND="npm run build"
-            else
-              echo "No build command detected and no build artifacts found."
-              echo "Please either:"
-              echo "  1. Build the app in your source workflow before calling this action, OR"
-              echo "  2. Provide build_command input, OR"
-              echo "  3. Ensure you have nx.json, angular.json, or 'build' script in package.json"
-              exit 1
-            fi
-          else
-            # Replace placeholders in custom build command
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g")
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
-          fi
-
-          echo "Running: $BUILD_COMMAND"
-          $BUILD_COMMAND
+          echo "❌ No build artifacts found for deployment"
+          echo ""
+          echo "This action expects build artifacts to already exist."
+          echo "Please ensure your source workflow includes these steps before calling this action:"
+          echo ""
+          echo "  - name: Install dependencies"
+          echo "    run: npm ci"
+          echo "    env:"
+          echo "      NODE_AUTH_TOKEN: \${{ secrets.NPM_PACKAGE_TOKEN }}"
+          echo ""
+          echo "  - name: Build app"
+          echo "    run: npm run build"
+          echo ""
+          echo "Expected build output directories: dist/, build/, or out/"
+          echo "Current directory contents:"
+          ls -la
+          exit 1
 
       - name: Setup Firebase CLI
+        if: steps.agent.outputs.app != 'SKIP'
         run: npm install -g firebase-tools
 
       - name: Authenticate to Firebase
+        if: steps.agent.outputs.app != 'SKIP'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.firebase_service_account }}
           create_credentials_file: true
 
       - name: Deploy Preview Channel
+        if: steps.agent.outputs.app != 'SKIP'
         id: deploy
         run: |
           FIREBASE_PROJECT="${{ inputs.firebase_project }}"
@@ -276,7 +280,7 @@ jobs:
           echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
 
       - name: Comment on linked issue
-        if: ${{ inputs.comment_on_issue == true }}
+        if: ${{ inputs.comment_on_issue == true && steps.agent.outputs.app != 'SKIP' }}
         uses: actions/github-script@v7
         with:
           script: |

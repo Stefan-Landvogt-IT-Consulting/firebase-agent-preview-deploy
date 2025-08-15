@@ -12,13 +12,8 @@ on:
       - "jules/**"
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +32,18 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            build/
+            out/
+          retention-days: 1
+
   deploy-preview:
-    needs: build-and-deploy
+    needs: build
     permissions:
       contents: read
       pull-requests: write
@@ -52,8 +57,6 @@ jobs:
       # default_target: 'web'
       # For multi-app repos with different Firebase sites (optional):
       # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
-      # Custom build command (optional - only needed if build artifacts don't exist):
-      # build_command: 'npm run build:preview'
       # Base branch (optional, defaults to 'main'):
       # base_branch: 'develop'
       # Disable issue commenting (optional, defaults to true):
