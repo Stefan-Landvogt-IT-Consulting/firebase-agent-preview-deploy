@@ -28,6 +28,8 @@ jobs:
       # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin","mobile-app":"my-project-mobile"}'
       # Custom build command (optional, defaults to 'npm run build'):
       # build_command: 'npm run build:preview'
+      # For NX workspaces, use $APP and $TARGET placeholders:
+      # build_command: 'npx nx run $APP:build'
       # Node version (optional, defaults to '20'):
       # node_version: '18'
       # Base branch (optional, defaults to 'main'):

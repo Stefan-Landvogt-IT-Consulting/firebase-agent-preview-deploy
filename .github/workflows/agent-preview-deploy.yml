@@ -222,17 +222,15 @@ jobs:
         run: |
           echo "Building ${{ steps.agent.outputs.app }}..."
 
-          BUILD_COMMAND="${{ inputs.build_command }}"
-          if [ -z "$BUILD_COMMAND" ]; then
-            BUILD_COMMAND="npm run build"
+          if [ -n "${{ inputs.build_command }}" ]; then
+            # Use custom build command with direct substitution
+            BUILD_COMMAND=$(echo "${{ inputs.build_command }}" | sed "s/\$APP/${{ steps.agent.outputs.app }}/g" | sed "s/\$TARGET/${{ steps.agent.outputs.target }}/g")
           else
-            # Replace placeholders in custom build command
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\\\$APP/${{ steps.agent.outputs.app }}/g")
-            BUILD_COMMAND=$(echo "$BUILD_COMMAND" | sed "s/\\\$TARGET/${{ steps.agent.outputs.target }}/g")
+            BUILD_COMMAND="npm run build"
           fi
 
           echo "Running: $BUILD_COMMAND"
-          $BUILD_COMMAND
+          eval "$BUILD_COMMAND"
 
           # Clean up Windows Zone.Identifier files that cause issues
           find . -name "*.Zone.Identifier" -delete 2>/dev/null || true
