@@ -57,25 +57,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js (with GitHub Packages)
-        if: ${{ secrets.github_npm_token != '' }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
           cache: "npm"
-          registry-url: "https://npm.pkg.github.com"
-
-      - name: Setup Node.js (public packages only)
-        if: ${{ secrets.github_npm_token == '' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node_version }}
-          cache: "npm"
+          registry-url: ${{ secrets.github_npm_token && 'https://npm.pkg.github.com' || 'https://registry.npmjs.org' }}
 
       - name: Install dependencies
         run: npm ci
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.github_npm_token }}
+          NODE_AUTH_TOKEN: ${{ secrets.github_npm_token || '' }}
 
       - name: Verify Firebase credentials
         run: |
