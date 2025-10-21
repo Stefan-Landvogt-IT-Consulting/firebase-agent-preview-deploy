@@ -68,7 +68,7 @@ jobs:
           cache: "npm"
 
       - name: Create .npmrc for GitHub Packages
-        if: ${{ secrets.github_npm_token != '' && inputs.npm_registry_scope != '' }}
+        if: ${{ inputs.npm_registry_scope != '' }}
         run: |
           echo "${{ inputs.npm_registry_scope }}:registry=https://npm.pkg.github.com/" > .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.github_npm_token }}" >> .npmrc
