@@ -38,6 +38,10 @@ on:
         description: "Custom build command (defaults to 'npm run build')"
         required: false
         type: string
+      npm_registry_scope:
+        description: "NPM registry scope for private packages"
+        required: false
+        type: string
     secrets:
       firebase_service_account:
         description: "Firebase service account JSON"
@@ -62,13 +66,15 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: "npm"
-          registry-url: ${{ secrets.github_npm_token && 'https://npm.pkg.github.com' || 'https://registry.npmjs.org' }}
 
+      - name: Create .npmrc for GitHub Packages
+        if: ${{ secrets.github_npm_token != '' && inputs.npm_registry_scope != '' }}
+        run: |
+          echo "${{ inputs.npm_registry_scope }}:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.github_npm_token }}" >> .npmrc
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.github_npm_token || '' }}
 
       - name: Verify Firebase credentials & Validate inputs
         run: |
@@ -144,7 +150,7 @@ jobs:
                 app_name=$(basename "$app_dir")
                 changes=$(echo "$CHANGED_FILES" | grep -c "apps/$app_name" || true)
                 echo "Changes in $app_name: $changes"
-                
+
                 # Use the app with the most changes
                 if [ "$changes" -gt "$max_changes" ]; then
                   max_changes="$changes"
@@ -153,7 +159,7 @@ jobs:
                 fi
               fi
             done
-            
+
             # If no app changes detected, skip deployment
             if [ -z "$APP" ]; then
               echo "No app changes detected in apps/ directory. Skipping deployment."
@@ -167,7 +173,7 @@ jobs:
             # Single-app repository - use configured defaults
             APP="${{ inputs.default_app }}"
             TARGET="${{ inputs.default_target }}"
-            
+
             if [ -z "$APP" ] || [ -z "$TARGET" ]; then
               echo "For single-app repos, default_app and default_target inputs are required."
               exit 1
@@ -293,7 +299,7 @@ jobs:
             if (issueMatch) {
               const issueNumber = parseInt(issueMatch[1]);
               const commentTemplate = `🚀 **Preview deployed!**\n\n📱 **App:** ${{ steps.agent.outputs.app }}\n🔗 **Preview URL:** ${{ steps.deploy.outputs.preview_url }}\n\n_Note: This preview updates with each new commit. Latest deployment from branch: \`${branchName}\`_`;
-              
+
               await github.rest.issues.createComment({
                 issue_number: issueNumber,
                 owner: context.repo.owner,
