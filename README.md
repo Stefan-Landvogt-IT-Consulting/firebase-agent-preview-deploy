@@ -42,6 +42,8 @@ jobs:
       # default_target: 'web'
       # For multi-app repos with different Firebase sites (optional):
       # site_mappings: '{"web-app":"my-project-web","admin-app":"my-project-admin"}'
+      # Auto-add preview domains to Firebase Auth (requires additional permissions):
+      add_auth_domain: true
     secrets:
       firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 ```
@@ -61,16 +63,16 @@ All configuration is done via **workflow inputs** when calling the reusable work
 
 ### Available Inputs
 
-| Input              | Description                                       | Required        | Default |
-| ------------------ | ------------------------------------------------- | --------------- | ------- |
-| `firebase_project` | Firebase project ID                               | Yes             | -       |
-| `default_app`      | App name (for single-app repos)                  | Single-app only | -       |
-| `default_target`   | Firebase hosting target (for single-app repos)   | Single-app only | -       |
-| `site_mappings`    | JSON mapping NX app names to Firebase site IDs   | No              | -       |
-| `build_command`    | Custom build command (overrides auto-detection)  | No              | -       |
-| `node_version`     | Node.js version                                   | No              | `20`    |
-| `base_branch`      | Base branch for change detection                  | No              | `main`  |
-| `add_auth_domain`  | Add preview URL domain to Firebase Auth           | No              | `false` |
+| Input              | Description                                     | Required        | Default |
+| ------------------ | ----------------------------------------------- | --------------- | ------- |
+| `firebase_project` | Firebase project ID                             | Yes             | -       |
+| `default_app`      | App name (for single-app repos)                 | Single-app only | -       |
+| `default_target`   | Firebase hosting target (for single-app repos)  | Single-app only | -       |
+| `site_mappings`    | JSON mapping NX app names to Firebase site IDs  | No              | -       |
+| `build_command`    | Custom build command (overrides auto-detection) | No              | -       |
+| `node_version`     | Node.js version                                 | No              | `20`    |
+| `base_branch`      | Base branch for change detection                | No              | `main`  |
+| `add_auth_domain`  | Add preview URL domain to Firebase Auth         | No              | `false` |
 
 ### Multi-App Site Mapping
 
@@ -89,6 +91,7 @@ build_command: "npm run build:preview"
 ```
 
 The build command can use placeholders:
+
 - `$APP` - replaced with the detected app name
 - `$TARGET` - replaced with the target name
 
@@ -101,11 +104,13 @@ add_auth_domain: true
 ```
 
 **Requirements:**
+
 1. **Enable Identity Toolkit API** in Google Cloud Console
 2. **Service account permissions** - Add `roles/firebaseauth.admin` role to your service account
 3. **Domain limit** - Firebase has a maximum of ~36 authorized domains
 
 The workflow will automatically:
+
 - Extract the domain from the deployed preview URL
 - Check if the domain is already authorized
 - Add it to the authorized domains list if not present
@@ -116,7 +121,7 @@ The workflow will automatically:
 uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
 with:
   firebase_project: "your-project"
-  add_auth_domain: true  # Enable automatic auth domain management
+  add_auth_domain: true # Enable automatic auth domain management
 secrets:
   firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 ```
@@ -216,6 +221,16 @@ Auto-detects:
   3. Add the "Firebase Authentication Admin" role
 - **"Too many domains"** - Firebase has a limit of ~36 authorized domains. Remove unused domains from Firebase Console > Authentication > Authorized Domains
 
+## Recent Changes
+
+See [CHANGELOG.md](CHANGELOG.md) for full history.
+
+### Latest Updates
+
+- **Automatic Firebase Auth Domain Management** - New `add_auth_domain` input parameter (2025-11-16)
+- **NPM Registry Scope Support** - New `npm_registry_scope` input for private packages (65a12d0, 2025-10-21)
+- **Bug Fix** - Fixed typo in workflow (9fe061f, 2025-10-21)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -223,6 +238,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Support
 
 If you encounter issues or have questions:
+
 1. Check the [troubleshooting section](#troubleshooting)
 2. Search [existing issues](https://github.com/Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/issues)
 3. Open a new issue with details about your setup
