@@ -9,6 +9,7 @@ Reusable GitHub Actions workflow for automatically deploying Firebase Hosting pr
 - 🔧 **Simple Configuration** - Just a few inputs required
 - 📝 **Issue Integration** - Posts preview URLs to linked GitHub issues
 - 🚀 **Firebase Hosting** - Deploys to preview channels
+- 🔐 **Auth Domain Management** - Automatically adds preview domains to Firebase Auth
 - ♻️ **Reusable** - Use across multiple repositories
 
 ## Quick Setup
@@ -69,6 +70,7 @@ All configuration is done via **workflow inputs** when calling the reusable work
 | `build_command`    | Custom build command (overrides auto-detection)  | No              | -       |
 | `node_version`     | Node.js version                                   | No              | `20`    |
 | `base_branch`      | Base branch for change detection                  | No              | `main`  |
+| `add_auth_domain`  | Add preview URL domain to Firebase Auth           | No              | `false` |
 
 ### Multi-App Site Mapping
 
@@ -89,6 +91,35 @@ build_command: "npm run build:preview"
 The build command can use placeholders:
 - `$APP` - replaced with the detected app name
 - `$TARGET` - replaced with the target name
+
+### Automatic Auth Domain Management
+
+When using Firebase Authentication, preview channel URLs must be added to the authorized domains list. Enable automatic domain management:
+
+```yaml
+add_auth_domain: true
+```
+
+**Requirements:**
+1. **Enable Identity Toolkit API** in Google Cloud Console
+2. **Service account permissions** - Add `roles/firebaseauth.admin` role to your service account
+3. **Domain limit** - Firebase has a maximum of ~36 authorized domains
+
+The workflow will automatically:
+- Extract the domain from the deployed preview URL
+- Check if the domain is already authorized
+- Add it to the authorized domains list if not present
+
+**Example usage:**
+
+```yaml
+uses: Stefan-Landvogt-IT-Consulting/firebase-agent-preview-deploy/.github/workflows/agent-preview-deploy.yml@main
+with:
+  firebase_project: "your-project"
+  add_auth_domain: true  # Enable automatic auth domain management
+secrets:
+  firebase_service_account: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+```
 
 ## How It Works
 
@@ -142,9 +173,10 @@ Auto-detects:
 3. Add as `FIREBASE_SERVICE_ACCOUNT` secret
 4. Ensure your `firebase.json` is configured for hosting
 5. **Add preview domains to Firebase Auth** (if using Firebase Authentication):
-   - Go to Firebase Console > Authentication > Settings > Authorized Domains
-   - Add your preview channel domains (format: `{project-id}--{channel-id}-{site-id}.web.app`)
-   - Example: `my-project--claude-web-preview-my-site.web.app`
+   - **Option A: Automatic** - Set `add_auth_domain: true` in your workflow (requires additional permissions, see [Automatic Auth Domain Management](#automatic-auth-domain-management))
+   - **Option B: Manual** - Go to Firebase Console > Authentication > Settings > Authorized Domains
+     - Add your preview channel domains (format: `{project-id}--{channel-id}-{site-id}.web.app`)
+     - Example: `my-project--claude-web-preview-my-site.web.app`
 
 ## Troubleshooting
 
@@ -169,6 +201,20 @@ Auto-detects:
 - Add preview channel domains to Firebase Console > Authentication > Authorized Domains
 - Preview domains follow the pattern: `{project-id}--{channel-id}-{site-id}.web.app`
 - You may need to add wildcard patterns like `{project-id}--*-{site-id}.web.app`
+- Or enable automatic domain management with `add_auth_domain: true`
+
+### Automatic auth domain management failures
+
+- **"Identity Toolkit API not enabled"** - Enable the API in Google Cloud Console:
+  1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+  2. Select your project
+  3. Navigate to APIs & Services > Library
+  4. Search for "Identity Toolkit API" and enable it
+- **"Permission denied"** - Add `roles/firebaseauth.admin` role to your service account:
+  1. Go to IAM & Admin > IAM
+  2. Find your service account
+  3. Add the "Firebase Authentication Admin" role
+- **"Too many domains"** - Firebase has a limit of ~36 authorized domains. Remove unused domains from Firebase Console > Authentication > Authorized Domains
 
 ## Contributing
 

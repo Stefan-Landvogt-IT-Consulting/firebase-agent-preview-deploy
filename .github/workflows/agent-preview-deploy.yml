@@ -42,6 +42,11 @@ on:
         description: "NPM registry scope for private packages"
         required: false
         type: string
+      add_auth_domain:
+        description: "Add preview URL domain to Firebase Auth authorized domains"
+        required: false
+        type: boolean
+        default: false
     secrets:
       firebase_service_account:
         description: "Firebase service account JSON"
@@ -310,3 +315,60 @@ jobs:
             } else {
               console.log(`Could not extract issue number from branch: ${branchName}`);
             }
+
+      - name: Add preview domain to Firebase Auth
+        if: ${{ inputs.add_auth_domain == true && steps.agent.outputs.app != 'SKIP' && steps.deploy.outputs.preview_url != '' }}
+        run: |
+          PREVIEW_URL="${{ steps.deploy.outputs.preview_url }}"
+          FIREBASE_PROJECT="${{ inputs.firebase_project }}"
+
+          # Extract domain from preview URL (remove protocol and path)
+          DOMAIN=$(echo "$PREVIEW_URL" | sed -E 's|^https?://||' | sed -E 's|/.*$||')
+
+          if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "URL_NOT_FOUND" ]; then
+            echo "Warning: Could not extract domain from preview URL: $PREVIEW_URL"
+            exit 0
+          fi
+
+          echo "Adding domain to Firebase Auth: $DOMAIN"
+
+          # Get access token using the authenticated service account
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+
+          # Get current authorized domains
+          echo "Fetching current authorized domains..."
+          CURRENT_CONFIG=$(curl -s \
+            "https://identitytoolkit.googleapis.com/admin/v2/projects/${FIREBASE_PROJECT}/config" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json")
+
+          if echo "$CURRENT_CONFIG" | jq -e '.error' > /dev/null 2>&1; then
+            echo "Error fetching config: $(echo "$CURRENT_CONFIG" | jq -r '.error.message')"
+            echo "Note: Ensure Identity Toolkit API is enabled and service account has firebaseauth.admin role"
+            exit 1
+          fi
+
+          CURRENT_DOMAINS=$(echo "$CURRENT_CONFIG" | jq -r '.authorizedDomains // []')
+
+          # Check if domain already exists
+          if echo "$CURRENT_DOMAINS" | jq -e --arg domain "$DOMAIN" 'index($domain) != null' > /dev/null 2>&1; then
+            echo "Domain $DOMAIN is already authorized"
+            exit 0
+          fi
+
+          # Add new domain to the list
+          NEW_DOMAINS=$(echo "$CURRENT_DOMAINS" | jq --arg domain "$DOMAIN" '. + [$domain]')
+
+          echo "Updating authorized domains..."
+          UPDATE_RESPONSE=$(curl -s -X PATCH \
+            "https://identitytoolkit.googleapis.com/admin/v2/projects/${FIREBASE_PROJECT}/config?updateMask=authorizedDomains" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"authorizedDomains\": $NEW_DOMAINS}")
+
+          if echo "$UPDATE_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+            echo "Error updating domains: $(echo "$UPDATE_RESPONSE" | jq -r '.error.message')"
+            exit 1
+          fi
+
+          echo "Successfully added $DOMAIN to Firebase Auth authorized domains"
