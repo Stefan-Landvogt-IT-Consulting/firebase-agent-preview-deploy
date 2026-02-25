@@ -249,7 +249,7 @@ jobs:
 
       - name: Setup Firebase CLI
         if: steps.agent.outputs.app != 'SKIP'
-        run: npm install -g firebase-tools
+        run: npm install -g firebase-tools --registry https://registry.npmjs.org/
 
       - name: Authenticate to Firebase
         if: steps.agent.outputs.app != 'SKIP'
