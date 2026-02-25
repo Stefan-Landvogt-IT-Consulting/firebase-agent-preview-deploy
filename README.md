@@ -70,9 +70,18 @@ All configuration is done via **workflow inputs** when calling the reusable work
 | `default_target`   | Firebase hosting target (for single-app repos)  | Single-app only | -       |
 | `site_mappings`    | JSON mapping NX app names to Firebase site IDs  | No              | -       |
 | `build_command`    | Custom build command (overrides auto-detection) | No              | -       |
-| `node_version`     | Node.js version                                 | No              | `20`    |
+| `node_version`     | Node.js version                                 | No              | `22`    |
 | `base_branch`      | Base branch for change detection                | No              | `main`  |
 | `add_auth_domain`  | Add preview URL domain to Firebase Auth         | No              | `false` |
+| `npm_registry_scope` | NPM scope for private GitHub Packages (e.g. `@my-org`) | No    | -       |
+
+### Secrets
+
+| Secret                    | Description                                      | Required |
+| ------------------------- | ------------------------------------------------ | -------- |
+| `firebase_service_account` | Firebase service account JSON key               | Yes      |
+| `github_npm_token`        | GitHub PAT with `read:packages` for private npm  | No       |
+
 
 ### Multi-App Site Mapping
 
@@ -225,11 +234,13 @@ Auto-detects:
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
-### Latest Updates
+### Latest Updates (v1.1.0 - 2026-02-25)
 
-- **Automatic Firebase Auth Domain Management** - New `add_auth_domain` input parameter (2025-11-16)
-- **NPM Registry Scope Support** - New `npm_registry_scope` input for private packages (65a12d0, 2025-10-21)
-- **Bug Fix** - Fixed typo in workflow (9fe061f, 2025-10-21)
+- **Bug Fix** - Firebase CLI install no longer fails with 403 on runners with project `.npmrc` auth
+- **Bug Fix** - Credential check now handles multi-line JSON service account secrets correctly
+- **Bug Fix** - Issue comments skipped when preview URL is unavailable
+- **Bug Fix** - `.npmrc` is merged instead of overwritten, preserving project settings
+- **Changed** - Node.js default version updated from `20` to `22`
 
 ## Contributing
 
