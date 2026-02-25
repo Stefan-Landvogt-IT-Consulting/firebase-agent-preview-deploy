@@ -21,7 +21,7 @@ on:
         type: string
         default: "main"
       site_mappings:
-        description: 'JSON mapping NX app names to Firebase site IDs (e.g., {"web-app":"my-project-web","admin-app":"my-project-admin"})'
+        description: 'JSON mapping NX app names to Firebase site IDs (e.g., {"web-app":"my-project-web","admin-app":"my-project-admin"})\'
         required: false
         type: string
       comment_on_issue:
@@ -33,13 +33,13 @@ on:
         description: "Node.js version"
         required: false
         type: string
-        default: "20"
+        default: "22"
       build_command:
         description: "Custom build command (defaults to 'npm run build')"
         required: false
         type: string
       npm_registry_scope:
-        description: "NPM registry scope for private packages"
+        description: "NPM registry scope for private packages (e.g. @my-org)"
         required: false
         type: string
       add_auth_domain:
@@ -75,16 +75,21 @@ jobs:
       - name: Create .npmrc for GitHub Packages
         if: ${{ inputs.npm_registry_scope != '' }}
         run: |
-          echo "${{ inputs.npm_registry_scope }}:registry=https://npm.pkg.github.com/" > .npmrc
+          # Preserve existing .npmrc, remove stale GitHub Packages entries then re-add
+          touch .npmrc
+          grep -v "npm.pkg.github.com" .npmrc > .npmrc.tmp 2>/dev/null && mv .npmrc.tmp .npmrc || true
+          echo "${{ inputs.npm_registry_scope }}:registry=https://npm.pkg.github.com/" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.github_npm_token }}" >> .npmrc
 
       - name: Install dependencies
         run: npm ci
 
       - name: Verify Firebase credentials & Validate inputs
+        env:
+          FIREBASE_SA: ${{ secrets.firebase_service_account }}
         run: |
-          # Verify Firebase credentials
-          if [ -z "${{ secrets.firebase_service_account }}" ]; then
+          # Use env var to safely check multi-line JSON secret
+          if [ -z "$FIREBASE_SA" ]; then
             echo "Error: FIREBASE_SERVICE_ACCOUNT secret is not set or empty"
             echo "Please ensure you have added the Firebase service account JSON as a repository secret"
             exit 1
@@ -207,27 +212,6 @@ jobs:
 
           echo "Using app: $APP, target: $TARGET, site: $SITE_ID"
 
-      - name: Check for existing build artifacts
-        if: steps.agent.outputs.app != 'SKIP'
-        run: |
-          echo "Checking for existing build artifacts..."
-
-          # Common build output directories
-          if [ -d "dist" ]; then
-            echo "Found dist/ directory"
-            ls -la dist/
-          elif [ -d "build" ]; then
-            echo "Found build/ directory"
-            ls -la build/
-          elif [ -d "out" ]; then
-            echo "Found out/ directory"
-            ls -la out/
-          else
-            echo "No build artifacts found - will attempt to build if possible"
-            echo "Contents of current directory:"
-            ls -la
-          fi
-
       - name: Build app
         if: steps.agent.outputs.app != 'SKIP'
         env:
@@ -300,23 +284,30 @@ jobs:
           script: |
             const branchName = '${{ steps.agent.outputs.branch }}';
             const agentName = '${{ steps.agent.outputs.name }}';
+            const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
             const issuePattern = `${agentName}\\/issue-(\\d+)-`;
             const issueMatch = branchName.match(new RegExp(issuePattern));
 
-            if (issueMatch) {
-              const issueNumber = parseInt(issueMatch[1]);
-              const commentTemplate = `🚀 **Preview deployed!**\n\n📱 **App:** ${{ steps.agent.outputs.app }}\n🔗 **Preview URL:** ${{ steps.deploy.outputs.preview_url }}\n\n_Note: This preview updates with each new commit. Latest deployment from branch: \`${branchName}\`_`;
-
-              await github.rest.issues.createComment({
-                issue_number: issueNumber,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: commentTemplate
-              });
-              console.log(`Posted comment to issue #${issueNumber}`);
-            } else {
+            if (!issueMatch) {
               console.log(`Could not extract issue number from branch: ${branchName}`);
+              return;
             }
+
+            if (!previewUrl || previewUrl === 'URL_NOT_FOUND') {
+              console.log('Preview URL not available, skipping issue comment');
+              return;
+            }
+
+            const issueNumber = parseInt(issueMatch[1]);
+            const commentTemplate = `🚀 **Preview deployed!**\n\n📱 **App:** ${{ steps.agent.outputs.app }}\n🔗 **Preview URL:** ${previewUrl}\n\n_Note: This preview updates with each new commit. Latest deployment from branch: \`${branchName}\`_`;
+
+            await github.rest.issues.createComment({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentTemplate
+            });
+            console.log(`Posted comment to issue #${issueNumber}`);
 
       - name: Add preview domain to Firebase Auth
         if: ${{ inputs.add_auth_domain == true && steps.agent.outputs.app != 'SKIP' && steps.deploy.outputs.preview_url != '' }}
