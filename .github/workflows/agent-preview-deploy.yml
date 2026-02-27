@@ -42,6 +42,11 @@ on:
         description: "NPM registry scope for private packages (e.g. @my-org)"
         required: false
         type: string
+      npm_install_args:
+        description: "Extra arguments for npm ci (e.g. --legacy-peer-deps)"
+        required: false
+        type: string
+        default: ""
       add_auth_domain:
         description: "Add preview URL domain to Firebase Auth authorized domains"
         required: false
@@ -82,7 +87,7 @@ jobs:
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.github_npm_token }}" >> .npmrc
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci ${{ inputs.npm_install_args }}
 
       - name: Verify Firebase credentials & Validate inputs
         env:
