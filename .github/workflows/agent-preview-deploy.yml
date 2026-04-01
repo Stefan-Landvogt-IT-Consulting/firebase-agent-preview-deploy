@@ -262,9 +262,10 @@ jobs:
 
           DEPLOY_COMMAND="firebase hosting:channel:deploy ${{ steps.agent.outputs.channel_id }}"
 
-          # Add hosting target if specified and not empty
-          if [ -n "${{ steps.agent.outputs.target }}" ] && [ "${{ steps.agent.outputs.target }}" != "default" ] && [ "${{ steps.agent.outputs.target }}" != "" ]; then
-            DEPLOY_COMMAND="$DEPLOY_COMMAND --only ${{ steps.agent.outputs.target }}"
+          # Add hosting site filter if specified and not empty
+          SITE_ID="${{ steps.agent.outputs.site_id }}"
+          if [ -n "$SITE_ID" ] && [ "$SITE_ID" != "default" ] && [ "$SITE_ID" != "" ]; then
+            DEPLOY_COMMAND="$DEPLOY_COMMAND --only $SITE_ID"
           fi
 
           DEPLOY_COMMAND="$DEPLOY_COMMAND --expires 30d --json"
