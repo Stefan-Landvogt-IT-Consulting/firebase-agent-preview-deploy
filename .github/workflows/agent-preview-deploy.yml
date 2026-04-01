@@ -225,11 +225,15 @@ jobs:
         run: |
           echo "Building $APP..."
 
-          if [ -n "${{ inputs.build_command }}" ]; then
-            echo "Running: ${{ inputs.build_command }}"
-            ${{ inputs.build_command }}
-          else
-            npm run build
+          BUILD_CMD="${{ inputs.build_command }}"
+          if [ -z "$BUILD_CMD" ]; then
+            BUILD_CMD="npm run build"
+          fi
+
+          echo "Running: $BUILD_CMD"
+          if ! $BUILD_CMD; then
+            echo "::error::Build failed for app '$APP'"
+            exit 1
           fi
 
           # Clean up Windows Zone.Identifier files that cause issues
@@ -266,10 +270,23 @@ jobs:
           DEPLOY_COMMAND="$DEPLOY_COMMAND --expires 30d --json"
 
           echo "Running: $DEPLOY_COMMAND"
-          $DEPLOY_COMMAND > deploy-output.json
+          DEPLOY_EXIT=0
+          $DEPLOY_COMMAND > deploy-output.json 2>&1 || DEPLOY_EXIT=$?
 
           echo "=== Deploy Output ==="
           cat deploy-output.json
+          echo "=== Deploy Exit Code: $DEPLOY_EXIT ==="
+
+          if [ "$DEPLOY_EXIT" -ne 0 ]; then
+            echo "::error::Firebase deploy failed with exit code $DEPLOY_EXIT"
+            echo "=== Error Details ==="
+            # Try to extract error message from JSON output
+            if jq -e '.error' deploy-output.json > /dev/null 2>&1; then
+              jq -r '.error' deploy-output.json
+            fi
+            exit $DEPLOY_EXIT
+          fi
+
           echo "=== Extracting URL ==="
 
           SITE_ID="${{ steps.agent.outputs.site_id }}"

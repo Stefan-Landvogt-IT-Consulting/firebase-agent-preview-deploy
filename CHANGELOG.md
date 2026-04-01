@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deploy error output invisible** - Firebase deploy errors are now captured and displayed
+  before the step fails. Previously, stdout was redirected to a file and `cat` never ran
+  on failure, making errors invisible in GitHub Actions logs.
+- **Build errors lack context** - Build failures now show a `::error::` annotation with the
+  app name for easier identification in the Actions UI
+
 ## [1.1.0] - 2026-02-25
 
 ### Fixed
