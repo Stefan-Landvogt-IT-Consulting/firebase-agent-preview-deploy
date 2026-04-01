@@ -272,9 +272,10 @@ jobs:
 
           echo "Running: $DEPLOY_COMMAND"
           DEPLOY_EXIT=0
-          $DEPLOY_COMMAND > deploy-output.json 2>&1 || DEPLOY_EXIT=$?
+          $DEPLOY_COMMAND > deploy-output.json 2>deploy-stderr.log || DEPLOY_EXIT=$?
 
           echo "=== Deploy Output ==="
+          cat deploy-stderr.log >&2 || true
           cat deploy-output.json
           echo "=== Deploy Exit Code: $DEPLOY_EXIT ==="
 
